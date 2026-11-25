@@ -1,5 +1,9 @@
 # HeatPro 상자 생성기
 
+## 실행 방법
+
+HeatPro.cmd를 실행하시오.
+
 ## 정다각형 링과 한 장짜리 전개도
 
 ```powershell
