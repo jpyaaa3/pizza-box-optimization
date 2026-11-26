@@ -3,16 +3,16 @@
 ## 실행 방법
 
 Windows에서는 `HeatPro.cmd`, Linux 데스크톱에서는 `./HeatPro.sh`로 GUI를 연다.
-Ubuntu에서 처음 설치할 때는 다음 명령을 실행한다.
+Ubuntu 서버나 데스크톱에서 Python 3.10 이상으로 처음 설정할 때는 다음 명령을 실행한다.
 
 ```bash
-sudo apt install python3-venv python3-tk libglu1-mesa
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
+./setup_venv.sh
 ./HeatPro.sh
 ```
 
-화면 없는 서버에서는 `./HeatPro.sh --cli --workers 8`로 GA를 실행한다.
+설치 스크립트는 프로젝트의 `.venv`를 생성하거나 재사용하고 의존성을 설치한다.
+Ubuntu 시스템 패키지가 빠져 있을 때만 관리자 권한을 사용한다.
+화면 없는 서버에서는 설정 후 `./HeatPro.sh --cli --workers 8`로 GA를 실행한다.
 
 ## 정다각형 링과 한 장짜리 전개도
 
