@@ -1,0 +1,16 @@
+{
+  "population": 49,
+  "children": 96,
+  "generations": 25,
+  "seed": 1769688389,
+  "workers": 8,
+  "mesh_mm": 8,
+  "dt_s": 4,
+  "shape": "ring",
+  "rank_weights": {
+    "mass": 1.0,
+    "temperature": 1.0,
+    "drying": 2.1
+  },
+  "thermal_model": "layered_panels"
+}
