@@ -1,4 +1,4 @@
-"""Windows desktop interface for running and inspecting HeatPro searches."""
+"""Desktop interface for running and inspecting HeatPro searches."""
 
 import json
 import math
@@ -293,7 +293,13 @@ class HeatProApp:
 
     def open_results(self):
         if self.output is not None and self.output.is_dir():
-            os.startfile(self.output)
+            try:
+                if os.name == "nt":
+                    os.startfile(self.output)
+                else:
+                    subprocess.Popen(["xdg-open", str(self.output)])
+            except OSError as error:
+                messagebox.showerror("결과 폴더", f"{self.output}\n{error}")
 
     def close(self):
         if self.process is None:
