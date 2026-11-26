@@ -10,7 +10,7 @@ import sys
 from collections import deque
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import asdict, dataclass
-from multiprocessing import get_context
+from multiprocessing import get_context, set_executable
 from pathlib import Path
 from time import perf_counter
 
@@ -251,6 +251,12 @@ def run(directory, population, children, generations, seed, workers=DEFAULT_WORK
     sample = sample_ring_box if shape == "ring" else sample_box
     for key in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
         os.environ[key] = "1"
+    # The Windows Store execution alias can lose inherited queue handles on spawn.
+    if os.name == "nt" and sys.prefix == sys.base_prefix:
+        alias_dir = Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft" / "WindowsApps"
+        interpreter = Path(sys.base_prefix) / "python.exe"
+        if Path(sys.executable).is_relative_to(alias_dir) and interpreter.is_file():
+            set_executable(str(interpreter))
     stop_file = directory / "stop.request"
     columns = ["id", "generation", "mass_g", "pizza_c", "water_percent", "water_fraction_percent",
                "status", "seconds", "detail", "design"]

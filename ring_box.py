@@ -302,7 +302,7 @@ def unfold_strips(box, local, ids):
     return None
 
 
-def unfold(box, rng, *, attempts=32, tab_mm=4.0, preferred=None):
+def unfold(box, rng, *, attempts=32, tab_mm=0.0, preferred=None):
     """Try bounded randomized hinge trees. Return None if no valid net is found."""
     if attempts < 1 or not np.isfinite(tab_mm) or tab_mm < 0:
         raise ValueError("Use positive unfold attempts and a finite, nonnegative tab width.")
@@ -520,7 +520,7 @@ def main():
     parser.add_argument("--bands", type=int)
     parser.add_argument("--seed", type=int)
     parser.add_argument("--out-dir", type=Path, default=Path("ring_candidates"))
-    parser.add_argument("--tab-mm", type=float, default=4.0)
+    parser.add_argument("--tab-mm", type=float, default=0.0)
     parser.add_argument("--nonconvex", action="store_true", help="Keep only genuinely indented cavities.")
     parser.add_argument("--unfold-attempts", type=int, default=32)
     parser.add_argument("--max-draws", type=int, default=200)
