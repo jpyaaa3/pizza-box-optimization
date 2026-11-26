@@ -82,19 +82,19 @@ class HeatProApp:
         for column, (key, label, default) in enumerate([
             ("population", "개체 수", "20"), ("children", "세대당 새 후보", "40"),
             ("generations", "세대 수", "25"), ("workers", "CPU 워커", str(min(8, MAX_WORKERS))),
-            ("seed", "시드 (선택)", ""),
+            ("seed", "시작 시드 (선택)", ""), ("repeats", "반복 횟수", "1"),
         ]):
             ttk.Label(controls, text=label).grid(row=0, column=column, sticky="w", padx=(0, 16))
-            entry = ttk.Entry(controls, width=11, font=(FONT, 10))
+            entry = ttk.Entry(controls, width=9, font=(FONT, 10))
             entry.grid(row=1, column=column, sticky="ew", padx=(0, 16), pady=(5, 0), ipady=4)
             entry.insert(0, default)
             self.options[key] = entry
         self.start_button = ttk.Button(controls, text="실행", style="Accent.TButton", command=self.start)
-        self.start_button.grid(row=1, column=5, padx=(0, 7))
+        self.start_button.grid(row=1, column=6, padx=(0, 7))
         self.stop_button = ttk.Button(controls, text="중지", command=self.stop, state="disabled")
-        self.stop_button.grid(row=1, column=6, padx=(0, 7))
+        self.stop_button.grid(row=1, column=7, padx=(0, 7))
         self.open_button = ttk.Button(controls, text="결과 폴더", command=self.open_results, state="disabled")
-        self.open_button.grid(row=1, column=7)
+        self.open_button.grid(row=1, column=8)
 
         ttk.Label(layout, textvariable=self.status, style="Section.TLabel").pack(anchor="w")
         self.progress = ttk.Progressbar(layout, mode="determinate")
@@ -131,10 +131,10 @@ class HeatProApp:
             settings = {key: int(entry.get()) for key, entry in self.options.items() if entry.get().strip()}
             if min(settings.get("population", 0), settings.get("children", 0)) < 1 or settings.get("generations", -1) < 0:
                 raise ValueError
-            if settings.get("seed", 0) < 0:
+            if settings.get("seed", 0) < 0 or settings.get("repeats", 0) < 1:
                 raise ValueError
         except ValueError:
-            messagebox.showerror("설정 확인", "개체 수, 새 후보 수, 세대 수, CPU 워커와 시드를 정수로 입력하세요.")
+            messagebox.showerror("설정 확인", "설정값은 정수이며 반복 횟수는 1 이상이어야 합니다.")
             return
         if not 1 <= settings.get("workers", 0) <= MAX_WORKERS:
             messagebox.showerror("CPU 워커 설정", f"이 PC에는 CPU 워커를 1~{MAX_WORKERS}개로 설정할 수 있습니다.")
@@ -154,6 +154,7 @@ class HeatProApp:
             messagebox.showerror("실행 오류", str(error))
             return
         self.settings = settings
+        self.repeat_label = ""
         self.failed = 0
         self.last_error = ""
         self.pending_stop = False
@@ -184,8 +185,14 @@ class HeatProApp:
             except queue.Empty:
                 break
             event = message["event"]
-            if event == "started":
+            if event == "repeat":
+                self.repeat_label = f"실험 {message['index']}/{message['total']} · "
+                self.progress.configure(value=0)
+                self.failed = 0
+                self.show_leaders([])
+            elif event == "started":
                 self.open_button.configure(state="normal")
+                self.status.set(self.repeat_label + "초기 개체 평가 중")
                 self.details.set(f"시드 {message['seed']} · CPU 워커 {message['workers']}개 · 초기 개체 평가 중")
                 if self.pending_stop:
                     self.request_stop()
@@ -198,7 +205,7 @@ class HeatProApp:
                 if message["status"] != "accepted":
                     self.failed += 1
                 if not self.pending_stop:
-                    self.status.set(f"세대 {generation} / {self.settings['generations']} 평가 중")
+                    self.status.set(self.repeat_label + f"세대 {generation} / {self.settings['generations']} 평가 중")
                 self.details.set(f"유효 후보 {message['accepted']} / {message['target']}  ·  누적 평가 {message['count']}"
                                  f"  ·  탈락 {self.failed}  ·  {message['elapsed_s']:.0f}초 경과")
             elif event == "generation":
@@ -208,7 +215,7 @@ class HeatProApp:
                 self.details.set(f"세대 {message['generation']} 저장  ·  누적 평가 {message['count']}"
                                  f"  ·  Pareto 후보 {message['archive']}  ·  {message['elapsed_s']:.0f}초 경과")
             elif event in ("stopped", "finished"):
-                self.status.set("중지 · 진행 결과 저장됨" if event == "stopped" else "완료 · 결과 저장됨")
+                self.status.set(self.repeat_label + ("중지 · 진행 결과 저장됨" if event == "stopped" else "완료 · 결과 저장됨"))
             elif event == "log" and message["text"]:
                 self.last_error = message["text"]
             elif event == "exit":

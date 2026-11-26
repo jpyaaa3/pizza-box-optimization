@@ -236,7 +236,7 @@ def evaluate_design(design, unfold_seed, preferred_net=None):
     return result, net if result["status"] == "accepted" else None
 
 
-def run(directory, population, children, generations, seed, workers=DEFAULT_WORKERS, shape="ring"):
+def run(directory, population, children, generations, seed, workers=DEFAULT_WORKERS, shape="ring", stop_file=None):
     directory.mkdir(parents=True, exist_ok=False)
     (directory / "settings.json").write_text(json.dumps({"population": population, "children": children,
         "generations": generations, "seed": seed, "workers": workers, "mesh_mm": 8, "dt_s": 4, "shape": shape,
@@ -257,7 +257,8 @@ def run(directory, population, children, generations, seed, workers=DEFAULT_WORK
         interpreter = Path(sys.base_prefix) / "python.exe"
         if Path(sys.executable).is_relative_to(alias_dir) and interpreter.is_file():
             set_executable(str(interpreter))
-    stop_file = directory / "stop.request"
+    if stop_file is None:
+        stop_file = directory / "stop.request"
     columns = ["id", "generation", "mass_g", "pizza_c", "water_percent", "water_fraction_percent",
                "status", "seconds", "detail", "design"]
     with ProcessPoolExecutor(max_workers=workers, mp_context=get_context("spawn"),
@@ -348,6 +349,7 @@ def main():
     parser.add_argument("--children", type=int, default=40)
     parser.add_argument("--generations", type=int, default=25)
     parser.add_argument("--seed", type=int)
+    parser.add_argument("--repeats", type=int, default=1, help="independent runs with consecutive seeds")
     parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
     parser.add_argument("--shape", choices=("ring", "convex"), default="ring")
     args = parser.parse_args()
@@ -355,8 +357,25 @@ def main():
         parser.error("Population and children must be positive. Generations and seed must be nonnegative.")
     if not 1 <= args.workers <= MAX_WORKERS:
         parser.error(f"Use between 1 and {MAX_WORKERS} CPU workers.")
-    run(args.out.resolve(), args.population, args.children, args.generations,
-        secrets.randbits(32) if args.seed is None else args.seed, args.workers, args.shape)
+    if args.repeats < 1:
+        parser.error("Repeated runs must be at least 1.")
+    root = args.out.resolve()
+    seed = secrets.randbits(32) if args.seed is None else args.seed
+    if args.repeats > 1:
+        root.mkdir(parents=True, exist_ok=False)
+    stop_file = root / "stop.request"
+    for i in range(args.repeats):
+        directory = root
+        if args.repeats > 1:
+            if stop_file.exists():
+                emit("stopped")
+                break
+            directory = root / f"run_{i+1:03d}_seed_{seed+i}"
+            emit("repeat", index=i+1, total=args.repeats)
+        run(directory, args.population, args.children, args.generations,
+            seed+i, args.workers, args.shape, stop_file)
+        if stop_file.exists():
+            break
 
 
 if __name__ == "__main__":
