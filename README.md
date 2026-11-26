@@ -17,6 +17,16 @@ GUI의 **반복 횟수** 또는 CLI의 `--repeats 5`로 같은 설정의 독립 
 첫 시드를 생략하면 자동 선택하고, 이후 회차마다 1씩 증가시킨다. 여러 회차의 결과는 실행 폴더 아래
 `run_001_seed_...` 형식으로 각각 저장된다. GUI의 중지는 남은 회차도 함께 중지한다.
 
+GUI의 **질량:온도:제습 가중치** 또는 CLI의 `--weights 1:1:3`으로 각 항목의 등수에 곱할 값을 정한다.
+기본값은 `1:1:1`이다. 가중 등수합이 낮은 순으로 선발하며, 개별 항목 등수와 합격 기준은 동일하다.
+동일한 시작 집단에서 두 설정을 비교하려면 다음처럼 실행한다.
+
+```bash
+./HeatPro.sh --cli --seed 42 --weights 1:1:1 --out ga_runs/equal42
+./HeatPro.sh --cli --seed 42 --weights 1:1:3 --out ga_runs/drying42
+.venv/bin/python plot_ga_candidates.py ga_runs/equal42 ga_runs/drying42
+```
+
 ## 정다각형 링과 한 장짜리 전개도
 
 ```powershell

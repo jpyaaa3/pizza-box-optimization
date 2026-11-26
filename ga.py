@@ -15,6 +15,7 @@ from pathlib import Path
 from time import perf_counter
 
 import numpy as np
+from ga_weights import parse_weights
 from scipy.stats import rankdata
 
 from box_generator import BOARD_DENSITY_KG_M3, BOARD_THICKNESS_MM, BoxDesign, InvalidGeometry, build_box, sample_box, write_obj
@@ -102,11 +103,11 @@ def mutate(parent, rng):
     return build_box(BoxDesign(tuple(angles), tuple(distances), tuple(points)), clearance_mm=1.0)
 
 
-def rank_population(pool, size):
+def rank_population(pool, size, weights=(1, 1, 1)):
     if not pool:
         return []
     ranks = rankdata([member.objectives for member in pool], method="average", axis=0)
-    scores = ranks.sum(axis=1)
+    scores = ranks @ weights
     features = np.asarray([
         (member.box.floor_area_m2, member.box.nonfloor_area_m2, member.box.air_volume_m3,
          member.box.rings[-1].height_mm if isinstance(member.box, RingBox)
@@ -236,10 +237,12 @@ def evaluate_design(design, unfold_seed, preferred_net=None):
     return result, net if result["status"] == "accepted" else None
 
 
-def run(directory, population, children, generations, seed, workers=DEFAULT_WORKERS, shape="ring", stop_file=None):
+def run(directory, population, children, generations, seed, workers=DEFAULT_WORKERS, shape="ring", stop_file=None,
+        weights=(1, 1, 1)):
     directory.mkdir(parents=True, exist_ok=False)
     (directory / "settings.json").write_text(json.dumps({"population": population, "children": children,
         "generations": generations, "seed": seed, "workers": workers, "mesh_mm": 8, "dt_s": 4, "shape": shape,
+        "rank_weights": dict(zip(("mass", "temperature", "drying"), weights)),
         "thermal_model": "layered_panels" if shape == "ring" else "cad_solid"}, indent=2),
         encoding="utf-8")
     rng = np.random.default_rng(seed)
@@ -327,7 +330,7 @@ def run(directory, population, children, generations, seed, workers=DEFAULT_WORK
                     stream.flush()
                     emit("evaluation", count=completed, generation=generation, accepted=accepted, target=target,
                          status=record["status"], elapsed_s=perf_counter() - started)
-                selected = rank_population(pool, population)
+                selected = rank_population(pool, population, weights)
                 snapshot(directory, selected, archive)
                 emit("generation", generation=generation, archive=len(archive), count=completed, pool_size=len(pool),
                      accepted=accepted, target=target, elapsed_s=perf_counter() - started,
@@ -352,6 +355,8 @@ def main():
     parser.add_argument("--repeats", type=int, default=1, help="independent runs with consecutive seeds")
     parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS)
     parser.add_argument("--shape", choices=("ring", "convex"), default="ring")
+    parser.add_argument("--weights", type=parse_weights, default="1:1:1", metavar="M:T:D",
+                        help="rank weights for mass, temperature and drying (default 1:1:1)")
     args = parser.parse_args()
     if min(args.population, args.children) < 1 or args.generations < 0 or (args.seed is not None and args.seed < 0):
         parser.error("Population and children must be positive. Generations and seed must be nonnegative.")
@@ -373,7 +378,7 @@ def main():
             directory = root / f"run_{i+1:03d}_seed_{seed+i}"
             emit("repeat", index=i+1, total=args.repeats)
         run(directory, args.population, args.children, args.generations,
-            seed+i, args.workers, args.shape, stop_file)
+            seed+i, args.workers, args.shape, stop_file, args.weights)
         if stop_file.exists():
             break
 

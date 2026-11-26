@@ -8,6 +8,7 @@ import subprocess
 import sys
 import threading
 import tkinter as tk
+from ga_weights import parse_weights
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -79,6 +80,10 @@ class HeatProApp:
 
         controls = ttk.Frame(layout)
         controls.pack(fill="x", pady=(0, 17))
+        self.weights_entry = ttk.Entry(header, width=10)
+        self.weights_entry.insert(0, "1:1:1")
+        self.weights_entry.pack(side="right", padx=(0, 12))
+        ttk.Label(header, text="질량:온도:제습 가중치").pack(side="right", padx=(0, 6))
         for column, (key, label, default) in enumerate([
             ("population", "개체 수", "20"), ("children", "세대당 새 후보", "40"),
             ("generations", "세대 수", "25"), ("workers", "CPU 워커", str(min(8, MAX_WORKERS))),
@@ -112,7 +117,7 @@ class HeatProApp:
         table.grid(row=1, column=0, sticky="nsew")
         fields = ("id", "mass", "heat", "water", "sum")
         self.tree = ttk.Treeview(table, columns=fields, show="headings", selectmode="browse")
-        for field, title, width in zip(fields, ("후보", "질량 (g) ↓", "온도 (°C) ↑", "수분 함량 (%) ↓", "등수 합"),
+        for field, title, width in zip(fields, ("후보", "질량 (g) ↓", "온도 (°C) ↑", "수분 함량 (%) ↓", "가중 등수합"),
                                        (65, 115, 115, 149, 75)):
             self.tree.heading(field, text=title)
             self.tree.column(field, width=width, minwidth=58, anchor="center")
@@ -140,6 +145,12 @@ class HeatProApp:
             messagebox.showerror("CPU 워커 설정", f"이 PC에는 CPU 워커를 1~{MAX_WORKERS}개로 설정할 수 있습니다.")
             return
         settings["shape"] = SHAPES[self.shape_var.get()]
+        settings["weights"] = self.weights_entry.get().strip()
+        try:
+            parse_weights(settings["weights"])
+        except ValueError:
+            messagebox.showerror("가중치 확인", "질량:온도:제습 순서로 입력하세요. 예: 1:1:3\n음수와 0:0:0은 사용할 수 없습니다.")
+            return
         name = datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:5]
         self.output = ROOT / "ga_runs" / name
         command = [sys.executable, "-B", "-u", str(ROOT / "ga.py"), "--out", str(self.output)]
@@ -230,6 +241,7 @@ class HeatProApp:
         self.root.after(100, self.poll)
 
     def set_running(self, running):
+        self.weights_entry.configure(state="disabled" if running else "normal")
         self.start_button.configure(state="disabled" if running else "normal")
         self.stop_button.configure(state="normal" if running else "disabled")
         self.shape_input.configure(state="disabled" if running else "readonly")
