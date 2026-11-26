@@ -1,0 +1,11 @@
+{
+  "population": 20,
+  "children": 40,
+  "generations": 25,
+  "seed": 2859397038,
+  "workers": 8,
+  "mesh_mm": 8,
+  "dt_s": 4,
+  "shape": "ring",
+  "thermal_model": "layered_panels"
+}

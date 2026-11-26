@@ -6,13 +6,6 @@ __pycache__/
 /venv/
 .pytest_cache/
 
-# GA runs and generated geometry
-/ga_runs/
-/Cheat/tophat_runs/
-/candidates/
-/ring_candidates/
-*.msh
-
 # Local configuration
 .env
 .env.*
